@@ -1,0 +1,12 @@
+{
+  "tests": [
+    {
+      "name": "Get all specialists",
+      "method": "GET",
+      "path": "/",
+      "expectedStatus": 200,
+      "expectedBody": [],
+      "bodyMatcher": "partial"
+    }
+  ]
+}

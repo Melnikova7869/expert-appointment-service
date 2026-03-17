@@ -1,0 +1,28 @@
+{
+  "tests": [
+    {
+      "name": "Get all appointments",
+      "method": "GET",
+      "path": "/",
+      "expectedStatus": 200,
+      "expectedBody": [],
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Book appointment",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "specialist_id": 1,
+        "appointment_date": "2026-12-01",
+        "appointment_time": "12:00",
+        "patient_name": "Тест Пациент",
+        "patient_phone": "+79001234567",
+        "patient_comment": "Тестовая запись"
+      },
+      "expectedStatus": 200,
+      "expectedBody": {"status": "pending"},
+      "bodyMatcher": "partial"
+    }
+  ]
+}
