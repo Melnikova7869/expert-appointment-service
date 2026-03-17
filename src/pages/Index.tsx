@@ -1,548 +1,415 @@
 import { useState } from "react";
 import Icon from "@/components/ui/icon";
 
+type Role = "patient" | "doctor";
+type Step = "role" | "form" | "success";
+
+interface PatientForm {
+  name: string;
+  email: string;
+  phone: string;
+  birthdate: string;
+  password: string;
+  confirm: string;
+}
+
+interface DoctorForm {
+  name: string;
+  email: string;
+  phone: string;
+  specialty: string;
+  license: string;
+  experience: string;
+  clinic: string;
+  password: string;
+  confirm: string;
+}
+
 const SPECIALTIES = [
-  { id: "therapist", name: "Терапевт", icon: "Stethoscope", desc: "Общая медицина" },
-  { id: "cardiologist", name: "Кардиолог", icon: "Heart", desc: "Сердце и сосуды" },
-  { id: "neurologist", name: "Невролог", icon: "Brain", desc: "Нервная система" },
-  { id: "orthopedist", name: "Ортопед", icon: "Bone", desc: "Суставы и кости" },
-  { id: "ophthalmologist", name: "Офтальмолог", icon: "Eye", desc: "Зрение" },
-  { id: "endocrinologist", name: "Эндокринолог", icon: "Activity", desc: "Гормоны и обмен" },
+  "Терапевт", "Кардиолог", "Невролог", "Ортопед",
+  "Офтальмолог", "Эндокринолог", "Дерматолог", "Педиатр",
+  "Хирург", "Гинеколог", "Уролог", "Психиатр",
 ];
 
-const DOCTORS: Record<string, { id: string; name: string; title: string; exp: string; rating: number }[]> = {
-  therapist: [
-    { id: "d1", name: "Соколова Анна Михайловна", title: "Терапевт высшей категории", exp: "18 лет опыта", rating: 4.9 },
-    { id: "d2", name: "Ларионов Дмитрий Павлович", title: "Врач-терапевт", exp: "9 лет опыта", rating: 4.7 },
-  ],
-  cardiologist: [
-    { id: "d3", name: "Громова Елена Сергеевна", title: "Кардиолог, к.м.н.", exp: "22 года опыта", rating: 5.0 },
-    { id: "d4", name: "Белов Игорь Алексеевич", title: "Кардиолог", exp: "12 лет опыта", rating: 4.8 },
-  ],
-  neurologist: [
-    { id: "d5", name: "Панова Татьяна Юрьевна", title: "Невролог высшей категории", exp: "15 лет опыта", rating: 4.9 },
-  ],
-  orthopedist: [
-    { id: "d6", name: "Зайцев Андрей Николаевич", title: "Хирург-ортопед", exp: "20 лет опыта", rating: 4.8 },
-  ],
-  ophthalmologist: [
-    { id: "d7", name: "Козлова Марина Владимировна", title: "Офтальмолог, д.м.н.", exp: "25 лет опыта", rating: 5.0 },
-  ],
-  endocrinologist: [
-    { id: "d8", name: "Федорова Наталья Ивановна", title: "Эндокринолог", exp: "11 лет опыта", rating: 4.6 },
-  ],
-};
+const emptyPatient: PatientForm = { name: "", email: "", phone: "", birthdate: "", password: "", confirm: "" };
+const emptyDoctor: DoctorForm = { name: "", email: "", phone: "", specialty: "", license: "", experience: "", clinic: "", password: "", confirm: "" };
 
-const TIMES = ["09:00", "09:30", "10:00", "10:30", "11:00", "11:30", "14:00", "14:30", "15:00", "15:30", "16:00", "16:30", "17:00"];
+function FieldInput({
+  label, type = "text", value, onChange, placeholder, required = true, error,
+}: {
+  label: string; type?: string; value: string; onChange: (v: string) => void;
+  placeholder?: string; required?: boolean; error?: string;
+}) {
+  const [focused, setFocused] = useState(false);
+  return (
+    <div className="space-y-1.5">
+      <label className="block text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--reg-muted)" }}>
+        {label}{required && <span style={{ color: "var(--reg-error)" }}> *</span>}
+      </label>
+      <div className="relative">
+        <input
+          type={type}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          placeholder={placeholder}
+          className="w-full px-4 py-3 rounded-xl text-sm font-medium outline-none transition-all duration-200"
+          style={{
+            background: focused ? "white" : "#f7f9fc",
+            border: `2px solid ${error ? "var(--reg-error)" : focused ? "var(--reg-blue)" : "var(--reg-border)"}`,
+            color: "var(--reg-dark)",
+            boxShadow: focused ? "0 0 0 4px rgba(59,108,244,0.08)" : "none",
+          }}
+        />
+      </div>
+      {error && <p className="text-xs font-medium" style={{ color: "var(--reg-error)" }}>{error}</p>}
+    </div>
+  );
+}
 
-function getDates() {
-  const dates = [];
-  const today = new Date();
-  for (let i = 1; i <= 14; i++) {
-    const d = new Date(today);
-    d.setDate(today.getDate() + i);
-    const dayName = d.toLocaleDateString("ru-RU", { weekday: "short" });
-    const dayNum = d.getDate();
-    const month = d.toLocaleDateString("ru-RU", { month: "short" });
-    const isWeekend = d.getDay() === 0 || d.getDay() === 6;
-    dates.push({ date: d, dayName, dayNum, month, isWeekend, key: d.toISOString().split("T")[0] });
-  }
-  return dates;
+function SelectInput({
+  label, value, onChange, options,
+}: { label: string; value: string; onChange: (v: string) => void; options: string[] }) {
+  const [focused, setFocused] = useState(false);
+  return (
+    <div className="space-y-1.5">
+      <label className="block text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--reg-muted)" }}>
+        {label}<span style={{ color: "var(--reg-error)" }}> *</span>
+      </label>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        className="w-full px-4 py-3 rounded-xl text-sm font-medium outline-none transition-all duration-200 appearance-none"
+        style={{
+          background: focused ? "white" : "#f7f9fc",
+          border: `2px solid ${focused ? "var(--reg-blue)" : "var(--reg-border)"}`,
+          color: value ? "var(--reg-dark)" : "var(--reg-muted)",
+          boxShadow: focused ? "0 0 0 4px rgba(59,108,244,0.08)" : "none",
+        }}
+      >
+        <option value="" disabled>Выберите специализацию</option>
+        {options.map((o) => <option key={o} value={o}>{o}</option>)}
+      </select>
+    </div>
+  );
 }
 
 export default function Index() {
-  const [step, setStep] = useState(1);
-  const [selectedSpecialty, setSelectedSpecialty] = useState("");
-  const [selectedDoctor, setSelectedDoctor] = useState("");
-  const [selectedDate, setSelectedDate] = useState("");
-  const [selectedTime, setSelectedTime] = useState("");
-  const [form, setForm] = useState({ name: "", phone: "", comment: "" });
-  const [submitted, setSubmitted] = useState(false);
-  const [animating, setAnimating] = useState(false);
+  const [step, setStep] = useState<Step>("role");
+  const [role, setRole] = useState<Role>("patient");
+  const [patient, setPatient] = useState<PatientForm>(emptyPatient);
+  const [doctor, setDoctor] = useState<DoctorForm>(emptyDoctor);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [showLogin, setShowLogin] = useState(false);
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPass, setLoginPass] = useState("");
 
-  const dates = getDates();
+  const setP = (k: keyof PatientForm) => (v: string) => setPatient((p) => ({ ...p, [k]: v }));
+  const setD = (k: keyof DoctorForm) => (v: string) => setDoctor((d) => ({ ...d, [k]: v }));
 
-  const goTo = (s: number) => {
-    setAnimating(true);
-    setTimeout(() => {
-      setStep(s);
-      setAnimating(false);
-    }, 200);
+  const validate = () => {
+    const errs: Record<string, string> = {};
+    if (role === "patient") {
+      if (!patient.name.trim()) errs.name = "Введите имя";
+      if (!patient.email.includes("@")) errs.email = "Некорректный email";
+      if (patient.phone.length < 10) errs.phone = "Введите номер телефона";
+      if (!patient.birthdate) errs.birthdate = "Укажите дату рождения";
+      if (patient.password.length < 6) errs.password = "Минимум 6 символов";
+      if (patient.password !== patient.confirm) errs.confirm = "Пароли не совпадают";
+    } else {
+      if (!doctor.name.trim()) errs.name = "Введите ФИО";
+      if (!doctor.email.includes("@")) errs.email = "Некорректный email";
+      if (doctor.phone.length < 10) errs.phone = "Введите номер телефона";
+      if (!doctor.specialty) errs.specialty = "Выберите специализацию";
+      if (!doctor.license.trim()) errs.license = "Введите номер лицензии";
+      if (doctor.password.length < 6) errs.password = "Минимум 6 символов";
+      if (doctor.password !== doctor.confirm) errs.confirm = "Пароли не совпадают";
+    }
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
   };
-
-  const specialty = SPECIALTIES.find((s) => s.id === selectedSpecialty);
-  const doctor = selectedSpecialty ? DOCTORS[selectedSpecialty]?.find((d) => d.id === selectedDoctor) : null;
-  const dateObj = dates.find((d) => d.key === selectedDate);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitted(true);
+    if (validate()) setStep("success");
   };
 
-  const canStep2 = selectedSpecialty && selectedDoctor;
-  const canStep3 = canStep2 && selectedDate && selectedTime;
-
   return (
-    <div className="min-h-screen font-sans" style={{ background: "var(--med-cream)" }}>
-      {/* Header */}
-      <header className="border-b border-stone-200 bg-white/60 backdrop-blur-sm sticky top-0 z-10">
-        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: "var(--med-sage)" }}>
-              <Icon name="Plus" size={16} className="text-white" />
+    <div className="min-h-screen flex" style={{ background: "var(--reg-bg)", fontFamily: "'Montserrat', sans-serif" }}>
+
+      {/* Left panel — branding */}
+      <div
+        className="hidden lg:flex flex-col justify-between w-[420px] flex-shrink-0 p-10 relative overflow-hidden"
+        style={{ background: "var(--reg-dark)" }}
+      >
+        <div
+          className="absolute inset-0 opacity-10"
+          style={{
+            backgroundImage: "radial-gradient(circle at 20% 80%, var(--reg-blue) 0%, transparent 50%), radial-gradient(circle at 80% 20%, var(--reg-teal) 0%, transparent 50%)",
+          }}
+        />
+        <div
+          className="absolute bottom-0 right-0 w-64 h-64 rounded-full opacity-5"
+          style={{ background: "var(--reg-blue)", transform: "translate(30%, 30%)" }}
+        />
+
+        <div className="relative z-10">
+          <div className="flex items-center gap-3 mb-12">
+            <div
+              className="w-10 h-10 rounded-xl flex items-center justify-center"
+              style={{ background: "var(--reg-blue)" }}
+            >
+              <Icon name="Plus" size={20} className="text-white" />
             </div>
-            <span className="font-serif text-xl font-semibold" style={{ color: "var(--med-dark)" }}>
-              МедЦентр
-            </span>
+            <span className="text-white font-bold text-xl tracking-tight">МедЦентр</span>
           </div>
-          <div className="flex items-center gap-2 text-sm" style={{ color: "var(--med-muted)" }}>
-            <Icon name="Phone" size={14} />
-            <span>8 (800) 555-00-00</span>
+
+          <div className="space-y-3">
+            <h1 className="text-4xl font-bold leading-tight text-white">
+              Современная<br />медицина<br />
+              <span style={{ color: "var(--reg-teal)" }}>для всех</span>
+            </h1>
+            <p className="text-base" style={{ color: "rgba(255,255,255,0.55)" }}>
+              Запись к врачу, история приёмов, результаты анализов — всё в одном месте
+            </p>
           </div>
         </div>
-      </header>
 
-      <main className="max-w-5xl mx-auto px-6 py-10">
-        {/* Hero */}
-        <div className="mb-10 animate-slide-up">
-          <p className="text-sm font-medium tracking-widest uppercase mb-2" style={{ color: "var(--med-sage)" }}>
-            Онлайн-запись
-          </p>
-          <h1 className="font-serif text-4xl md:text-5xl font-semibold leading-tight" style={{ color: "var(--med-dark)" }}>
-            Запись к врачу
-          </h1>
-          <p className="mt-3 text-base" style={{ color: "var(--med-muted)" }}>
-            Выберите специалиста и удобное время — без ожидания на линии
-          </p>
+        <div className="relative z-10 space-y-4">
+          {[
+            { icon: "CalendarCheck", text: "Онлайн-запись в любое время" },
+            { icon: "FileText", text: "Электронная медкарта" },
+            { icon: "Bell", text: "Напоминания о приёме" },
+            { icon: "ShieldCheck", text: "Защита персональных данных" },
+          ].map((f) => (
+            <div key={f.icon} className="flex items-center gap-3">
+              <div
+                className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                style={{ background: "rgba(255,255,255,0.08)" }}
+              >
+                <Icon name={f.icon} size={16} style={{ color: "var(--reg-teal)" }} />
+              </div>
+              <span className="text-sm" style={{ color: "rgba(255,255,255,0.7)" }}>{f.text}</span>
+            </div>
+          ))}
         </div>
 
-        {/* Steps indicator */}
-        {!submitted && (
-          <div className="flex items-center gap-0 mb-8">
-            {[
-              { n: 1, label: "Врач" },
-              { n: 2, label: "Время" },
-              { n: 3, label: "Данные" },
-            ].map((s, i) => (
-              <div key={s.n} className="flex items-center">
-                <div className="flex items-center gap-2">
-                  <div
-                    className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold transition-all duration-300"
-                    style={{
-                      background: step >= s.n ? "var(--med-sage)" : "var(--med-sage-light)",
-                      color: step >= s.n ? "white" : "var(--med-sage)",
+        <p className="relative z-10 text-xs" style={{ color: "rgba(255,255,255,0.3)" }}>
+          © 2026 МедЦентр. Все права защищены.
+        </p>
+      </div>
+
+      {/* Right panel */}
+      <div className="flex-1 flex flex-col items-center justify-start py-10 px-4 sm:px-8 overflow-y-auto">
+
+        <div className="flex lg:hidden items-center gap-2 mb-8 self-start">
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "var(--reg-blue)" }}>
+            <Icon name="Plus" size={16} className="text-white" />
+          </div>
+          <span className="font-bold text-lg" style={{ color: "var(--reg-dark)" }}>МедЦентр</span>
+        </div>
+
+        <div className="w-full max-w-[520px]">
+
+          {/* ── role select ── */}
+          {step === "role" && !showLogin && (
+            <div className="animate-fade-in">
+              <div className="mb-8">
+                <h2 className="text-3xl font-bold mb-2" style={{ color: "var(--reg-dark)" }}>Создать аккаунт</h2>
+                <p className="text-sm" style={{ color: "var(--reg-muted)" }}>Кто вы? Выберите тип аккаунта для регистрации.</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 mb-8">
+                {[
+                  { r: "patient" as Role, icon: "User", label: "Пациент", desc: "Записывайтесь к врачам, храните историю лечения", color: "var(--reg-blue)", bg: "var(--reg-blue-light)", hoverShadow: "rgba(59,108,244,0.12)", hoverBorder: "var(--reg-blue)" },
+                  { r: "doctor" as Role, icon: "Stethoscope", label: "Врач", desc: "Управляйте расписанием и ведите пациентов онлайн", color: "var(--reg-teal)", bg: "var(--reg-teal-light)", hoverShadow: "rgba(15,163,177,0.12)", hoverBorder: "var(--reg-teal)" },
+                ].map((item) => (
+                  <button
+                    key={item.r}
+                    onClick={() => { setRole(item.r); setStep("form"); }}
+                    className="p-6 rounded-2xl text-left transition-all duration-200 active:scale-95"
+                    style={{ background: "white", border: "2px solid var(--reg-border)" }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = item.hoverBorder;
+                      e.currentTarget.style.boxShadow = `0 8px 32px ${item.hoverShadow}`;
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = "var(--reg-border)";
+                      e.currentTarget.style.boxShadow = "none";
                     }}
                   >
-                    {step > s.n ? <Icon name="Check" size={14} /> : s.n}
-                  </div>
-                  <span
-                    className="text-sm font-medium hidden sm:block"
-                    style={{ color: step >= s.n ? "var(--med-dark)" : "var(--med-muted)" }}
-                  >
-                    {s.label}
-                  </span>
-                </div>
-                {i < 2 && (
-                  <div
-                    className="w-12 h-px mx-3 transition-all duration-500"
-                    style={{ background: step > s.n ? "var(--med-sage)" : "var(--med-sage-light)" }}
-                  />
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Content */}
-        <div className={`transition-all duration-200 ${animating ? "opacity-0 translate-y-2" : "opacity-100 translate-y-0"}`}>
-
-          {/* Step 1 — Specialty + Doctor */}
-          {step === 1 && !submitted && (
-            <div className="space-y-8">
-              <div>
-                <h2 className="font-serif text-2xl font-semibold mb-5" style={{ color: "var(--med-dark)" }}>
-                  Выберите специализацию
-                </h2>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                  {SPECIALTIES.map((sp) => (
-                    <button
-                      key={sp.id}
-                      onClick={() => { setSelectedSpecialty(sp.id); setSelectedDoctor(""); }}
-                      className="p-4 rounded-2xl border-2 text-left transition-all duration-200 hover:shadow-md"
-                      style={{
-                        background: selectedSpecialty === sp.id ? "var(--med-sage)" : "white",
-                        borderColor: selectedSpecialty === sp.id ? "var(--med-sage)" : "transparent",
-                        color: selectedSpecialty === sp.id ? "white" : "var(--med-dark)",
-                        boxShadow: selectedSpecialty === sp.id ? "0 4px 20px rgba(122,158,142,0.3)" : "0 1px 4px rgba(0,0,0,0.06)",
-                      }}
-                    >
-                      <Icon
-                        name={sp.icon}
-                        size={22}
-                        className="mb-2"
-                        style={{ color: selectedSpecialty === sp.id ? "rgba(255,255,255,0.9)" : "var(--med-sage)" }}
-                      />
-                      <div className="font-semibold text-sm">{sp.name}</div>
-                      <div
-                        className="text-xs mt-0.5"
-                        style={{ color: selectedSpecialty === sp.id ? "rgba(255,255,255,0.75)" : "var(--med-muted)" }}
-                      >
-                        {sp.desc}
-                      </div>
-                    </button>
-                  ))}
-                </div>
+                    <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4" style={{ background: item.bg }}>
+                      <Icon name={item.icon} size={22} style={{ color: item.color }} />
+                    </div>
+                    <div className="font-bold text-base mb-1" style={{ color: "var(--reg-dark)" }}>{item.label}</div>
+                    <p className="text-xs leading-relaxed" style={{ color: "var(--reg-muted)" }}>{item.desc}</p>
+                    <div className="mt-4 flex items-center gap-1 text-xs font-semibold" style={{ color: item.color }}>
+                      Выбрать <Icon name="ArrowRight" size={12} />
+                    </div>
+                  </button>
+                ))}
               </div>
 
-              {selectedSpecialty && (
-                <div className="animate-slide-up">
-                  <h2 className="font-serif text-2xl font-semibold mb-5" style={{ color: "var(--med-dark)" }}>
-                    Выберите врача
-                  </h2>
-                  <div className="space-y-3">
-                    {(DOCTORS[selectedSpecialty] || []).map((doc) => (
-                      <button
-                        key={doc.id}
-                        onClick={() => setSelectedDoctor(doc.id)}
-                        className="w-full p-5 rounded-2xl border-2 text-left transition-all duration-200 flex items-center gap-4 hover:shadow-md"
-                        style={{
-                          background: selectedDoctor === doc.id ? "var(--med-sage)" : "white",
-                          borderColor: selectedDoctor === doc.id ? "var(--med-sage)" : "transparent",
-                          color: selectedDoctor === doc.id ? "white" : "var(--med-dark)",
-                          boxShadow: selectedDoctor === doc.id ? "0 4px 20px rgba(122,158,142,0.3)" : "0 1px 4px rgba(0,0,0,0.06)",
-                        }}
-                      >
-                        <div
-                          className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 font-serif text-lg font-semibold"
-                          style={{
-                            background: selectedDoctor === doc.id ? "rgba(255,255,255,0.2)" : "var(--med-sage-light)",
-                            color: selectedDoctor === doc.id ? "white" : "var(--med-sage)",
-                          }}
-                        >
-                          {doc.name.charAt(0)}
-                        </div>
-                        <div className="flex-1">
-                          <div className="font-semibold">{doc.name}</div>
-                          <div
-                            className="text-sm mt-0.5"
-                            style={{ color: selectedDoctor === doc.id ? "rgba(255,255,255,0.8)" : "var(--med-muted)" }}
-                          >
-                            {doc.title} · {doc.exp}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-1 text-sm font-medium">
-                          <Icon
-                            name="Star"
-                            size={14}
-                            style={{ color: selectedDoctor === doc.id ? "rgba(255,255,255,0.9)" : "var(--med-gold)" }}
-                          />
-                          <span style={{ color: selectedDoctor === doc.id ? "rgba(255,255,255,0.9)" : "var(--med-gold)" }}>
-                            {doc.rating}
-                          </span>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <div className="flex justify-end pt-2">
-                <button
-                  disabled={!canStep2}
-                  onClick={() => goTo(2)}
-                  className="px-8 py-3 rounded-xl font-semibold text-white transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed hover:shadow-lg active:scale-95"
-                  style={{ background: "var(--med-sage)" }}
-                >
-                  Далее →
+              <div className="p-4 rounded-xl flex items-center justify-between" style={{ background: "white", border: "1px solid var(--reg-border)" }}>
+                <span className="text-sm" style={{ color: "var(--reg-muted)" }}>Уже есть аккаунт?</span>
+                <button onClick={() => setShowLogin(true)} className="text-sm font-semibold hover:opacity-70" style={{ color: "var(--reg-blue)" }}>
+                  Войти →
                 </button>
               </div>
             </div>
           )}
 
-          {/* Step 2 — Date + Time */}
-          {step === 2 && !submitted && (
-            <div className="space-y-8">
-              {/* Summary */}
-              <div
-                className="p-4 rounded-2xl flex items-center gap-4"
-                style={{ background: "white", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}
-              >
+          {/* ── login ── */}
+          {showLogin && (
+            <div className="animate-fade-in">
+              <button onClick={() => setShowLogin(false)} className="flex items-center gap-2 text-sm font-medium mb-8 hover:opacity-70" style={{ color: "var(--reg-muted)" }}>
+                <Icon name="ArrowLeft" size={16} /> Назад
+              </button>
+              <h2 className="text-3xl font-bold mb-1" style={{ color: "var(--reg-dark)" }}>Добро пожаловать</h2>
+              <p className="text-sm mb-8" style={{ color: "var(--reg-muted)" }}>Войдите в свой аккаунт</p>
+
+              <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
+                <FieldInput label="Email" type="email" value={loginEmail} onChange={setLoginEmail} placeholder="you@example.com" />
+                <FieldInput label="Пароль" type="password" value={loginPass} onChange={setLoginPass} placeholder="••••••••" />
+                <div className="flex justify-end">
+                  <button type="button" className="text-xs font-medium hover:opacity-70" style={{ color: "var(--reg-blue)" }}>Забыли пароль?</button>
+                </div>
+                <button type="submit" className="w-full py-3.5 rounded-xl text-white font-bold text-sm hover:opacity-90 active:scale-[0.98]" style={{ background: "var(--reg-blue)" }}>
+                  Войти
+                </button>
+              </form>
+
+              <div className="mt-6 text-center">
+                <span className="text-sm" style={{ color: "var(--reg-muted)" }}>Нет аккаунта? </span>
+                <button onClick={() => setShowLogin(false)} className="text-sm font-semibold hover:opacity-70" style={{ color: "var(--reg-blue)" }}>
+                  Зарегистрироваться
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ── registration form ── */}
+          {step === "form" && (
+            <div className="animate-fade-in">
+              <button onClick={() => setStep("role")} className="flex items-center gap-2 text-sm font-medium mb-8 hover:opacity-70" style={{ color: "var(--reg-muted)" }}>
+                <Icon name="ArrowLeft" size={16} /> Назад
+              </button>
+
+              <div className="flex items-center gap-3 mb-6">
                 <div
-                  className="w-10 h-10 rounded-full flex items-center justify-center font-serif text-base font-semibold flex-shrink-0"
-                  style={{ background: "var(--med-sage-light)", color: "var(--med-sage)" }}
+                  className="w-10 h-10 rounded-xl flex items-center justify-center"
+                  style={{ background: role === "patient" ? "var(--reg-blue-light)" : "var(--reg-teal-light)" }}
                 >
-                  {doctor?.name.charAt(0)}
+                  <Icon name={role === "patient" ? "User" : "Stethoscope"} size={18} style={{ color: role === "patient" ? "var(--reg-blue)" : "var(--reg-teal)" }} />
                 </div>
                 <div>
-                  <div className="font-semibold text-sm" style={{ color: "var(--med-dark)" }}>{doctor?.name}</div>
-                  <div className="text-xs" style={{ color: "var(--med-muted)" }}>{specialty?.name} · {doctor?.title}</div>
-                </div>
-                <button
-                  onClick={() => goTo(1)}
-                  className="ml-auto text-xs font-medium"
-                  style={{ color: "var(--med-sage)" }}
-                >
-                  Изменить
-                </button>
-              </div>
-
-              <div>
-                <h2 className="font-serif text-2xl font-semibold mb-5" style={{ color: "var(--med-dark)" }}>
-                  Выберите дату
-                </h2>
-                <div className="flex gap-2 overflow-x-auto pb-2">
-                  {dates.filter((d) => !d.isWeekend).slice(0, 10).map((d) => (
-                    <button
-                      key={d.key}
-                      onClick={() => { setSelectedDate(d.key); setSelectedTime(""); }}
-                      className="flex-shrink-0 w-16 py-3 rounded-xl text-center transition-all duration-200 hover:shadow-md"
-                      style={{
-                        background: selectedDate === d.key ? "var(--med-sage)" : "white",
-                        color: selectedDate === d.key ? "white" : "var(--med-dark)",
-                        boxShadow: selectedDate === d.key ? "0 4px 16px rgba(122,158,142,0.3)" : "0 1px 4px rgba(0,0,0,0.06)",
-                      }}
-                    >
-                      <div
-                        className="text-xs font-medium uppercase tracking-wide"
-                        style={{ color: selectedDate === d.key ? "rgba(255,255,255,0.75)" : "var(--med-muted)" }}
-                      >
-                        {d.dayName}
-                      </div>
-                      <div className="text-xl font-serif font-semibold my-0.5">{d.dayNum}</div>
-                      <div
-                        className="text-xs"
-                        style={{ color: selectedDate === d.key ? "rgba(255,255,255,0.75)" : "var(--med-muted)" }}
-                      >
-                        {d.month}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {selectedDate && (
-                <div className="animate-slide-up">
-                  <h2 className="font-serif text-2xl font-semibold mb-5" style={{ color: "var(--med-dark)" }}>
-                    Выберите время
+                  <h2 className="text-2xl font-bold" style={{ color: "var(--reg-dark)" }}>
+                    {role === "patient" ? "Регистрация пациента" : "Регистрация врача"}
                   </h2>
-                  <div className="flex flex-wrap gap-2">
-                    {TIMES.map((t) => (
-                      <button
-                        key={t}
-                        onClick={() => setSelectedTime(t)}
-                        className="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:shadow-sm"
-                        style={{
-                          background: selectedTime === t ? "var(--med-sage)" : "white",
-                          color: selectedTime === t ? "white" : "var(--med-dark)",
-                          boxShadow: selectedTime === t ? "0 4px 12px rgba(122,158,142,0.3)" : "0 1px 4px rgba(0,0,0,0.06)",
-                        }}
-                      >
-                        {t}
-                      </button>
-                    ))}
-                  </div>
+                  <p className="text-xs" style={{ color: "var(--reg-muted)" }}>
+                    {role === "patient" ? "Создайте аккаунт для записи к специалистам" : "Заполните профессиональные данные"}
+                  </p>
                 </div>
-              )}
-
-              <div className="flex justify-between pt-2">
-                <button
-                  onClick={() => goTo(1)}
-                  className="px-6 py-3 rounded-xl font-semibold transition-all duration-200 hover:opacity-70"
-                  style={{ color: "var(--med-muted)" }}
-                >
-                  ← Назад
-                </button>
-                <button
-                  disabled={!canStep3}
-                  onClick={() => goTo(3)}
-                  className="px-8 py-3 rounded-xl font-semibold text-white transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed hover:shadow-lg active:scale-95"
-                  style={{ background: "var(--med-sage)" }}
-                >
-                  Далее →
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Step 3 — Contact form */}
-          {step === 3 && !submitted && (
-            <div className="space-y-6">
-              {/* Summary card */}
-              <div
-                className="p-5 rounded-2xl space-y-3"
-                style={{ background: "white", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}
-              >
-                <div className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: "var(--med-muted)" }}>
-                  Ваша запись
-                </div>
-                <div className="flex items-center gap-3">
-                  <Icon name="User" size={16} style={{ color: "var(--med-sage)" }} />
-                  <span className="text-sm font-medium" style={{ color: "var(--med-dark)" }}>{doctor?.name}</span>
-                  <span className="text-sm" style={{ color: "var(--med-muted)" }}>— {specialty?.name}</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Icon name="Calendar" size={16} style={{ color: "var(--med-sage)" }} />
-                  <span className="text-sm" style={{ color: "var(--med-dark)" }}>
-                    {dateObj ? `${dateObj.dayNum} ${dateObj.month}` : ""}, {selectedTime}
-                  </span>
-                </div>
-                <button
-                  onClick={() => goTo(2)}
-                  className="text-xs font-medium mt-1"
-                  style={{ color: "var(--med-sage)" }}
-                >
-                  Изменить дату и время
-                </button>
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-4">
-                <h2 className="font-serif text-2xl font-semibold" style={{ color: "var(--med-dark)" }}>
-                  Ваши данные
-                </h2>
-
-                <div>
-                  <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--med-dark)" }}>
-                    Имя и фамилия *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={form.name}
-                    onChange={(e) => setForm({ ...form, name: e.target.value })}
-                    placeholder="Иванов Иван"
-                    className="w-full px-4 py-3 rounded-xl border text-sm outline-none transition-all"
-                    style={{
-                      background: "white",
-                      borderColor: "hsl(var(--border))",
-                      color: "var(--med-dark)",
-                    }}
-                    onFocus={(e) => (e.target.style.borderColor = "var(--med-sage)")}
-                    onBlur={(e) => (e.target.style.borderColor = "hsl(var(--border))")}
+                <div className="p-5 rounded-2xl space-y-4" style={{ background: "white", border: "1px solid var(--reg-border)" }}>
+                  <p className="text-xs font-bold uppercase tracking-widest" style={{ color: "var(--reg-muted)" }}>Личные данные</p>
+                  <FieldInput
+                    label={role === "doctor" ? "ФИО" : "Имя и фамилия"}
+                    value={role === "patient" ? patient.name : doctor.name}
+                    onChange={role === "patient" ? setP("name") : setD("name")}
+                    placeholder={role === "doctor" ? "Иванов Иван Иванович" : "Иван Иванов"}
+                    error={errors.name}
                   />
+                  <div className="grid grid-cols-2 gap-3">
+                    <FieldInput label="Email" type="email" value={role === "patient" ? patient.email : doctor.email} onChange={role === "patient" ? setP("email") : setD("email")} placeholder="you@example.com" error={errors.email} />
+                    <FieldInput label="Телефон" type="tel" value={role === "patient" ? patient.phone : doctor.phone} onChange={role === "patient" ? setP("phone") : setD("phone")} placeholder="+7 900 000-00-00" error={errors.phone} />
+                  </div>
+                  {role === "patient" && (
+                    <FieldInput label="Дата рождения" type="date" value={patient.birthdate} onChange={setP("birthdate")} error={errors.birthdate} />
+                  )}
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--med-dark)" }}>
-                    Номер телефона *
-                  </label>
-                  <input
-                    type="tel"
-                    required
-                    value={form.phone}
-                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                    placeholder="+7 (___) ___-__-__"
-                    className="w-full px-4 py-3 rounded-xl border text-sm outline-none transition-all"
-                    style={{
-                      background: "white",
-                      borderColor: "hsl(var(--border))",
-                      color: "var(--med-dark)",
-                    }}
-                    onFocus={(e) => (e.target.style.borderColor = "var(--med-sage)")}
-                    onBlur={(e) => (e.target.style.borderColor = "hsl(var(--border))")}
-                  />
+                {role === "doctor" && (
+                  <div className="p-5 rounded-2xl space-y-4" style={{ background: "white", border: "1px solid var(--reg-border)" }}>
+                    <p className="text-xs font-bold uppercase tracking-widest" style={{ color: "var(--reg-muted)" }}>Профессиональные данные</p>
+                    <SelectInput label="Специализация" value={doctor.specialty} onChange={setD("specialty")} options={SPECIALTIES} />
+                    <div className="grid grid-cols-2 gap-3">
+                      <FieldInput label="Номер лицензии" value={doctor.license} onChange={setD("license")} placeholder="ЛО-77-01-..." error={errors.license} />
+                      <FieldInput label="Опыт (лет)" type="number" value={doctor.experience} onChange={setD("experience")} placeholder="10" required={false} />
+                    </div>
+                    <FieldInput label="Клиника / место работы" value={doctor.clinic} onChange={setD("clinic")} placeholder="Городская больница №5" required={false} />
+                  </div>
+                )}
+
+                <div className="p-5 rounded-2xl space-y-4" style={{ background: "white", border: "1px solid var(--reg-border)" }}>
+                  <p className="text-xs font-bold uppercase tracking-widest" style={{ color: "var(--reg-muted)" }}>Придумайте пароль</p>
+                  <FieldInput label="Пароль" type="password" value={role === "patient" ? patient.password : doctor.password} onChange={role === "patient" ? setP("password") : setD("password")} placeholder="Минимум 6 символов" error={errors.password} />
+                  <FieldInput label="Подтвердите пароль" type="password" value={role === "patient" ? patient.confirm : doctor.confirm} onChange={role === "patient" ? setP("confirm") : setD("confirm")} placeholder="Повторите пароль" error={errors.confirm} />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--med-dark)" }}>
-                    Комментарий <span style={{ color: "var(--med-muted)" }}>(необязательно)</span>
-                  </label>
-                  <textarea
-                    rows={3}
-                    value={form.comment}
-                    onChange={(e) => setForm({ ...form, comment: e.target.value })}
-                    placeholder="Опишите жалобы или вопросы к врачу..."
-                    className="w-full px-4 py-3 rounded-xl border text-sm outline-none transition-all resize-none"
-                    style={{
-                      background: "white",
-                      borderColor: "hsl(var(--border))",
-                      color: "var(--med-dark)",
-                    }}
-                    onFocus={(e) => (e.target.style.borderColor = "var(--med-sage)")}
-                    onBlur={(e) => (e.target.style.borderColor = "hsl(var(--border))")}
-                  />
-                </div>
+                <button
+                  type="submit"
+                  className="w-full py-4 rounded-2xl text-white font-bold text-base hover:opacity-90 active:scale-[0.98] shadow-lg"
+                  style={{
+                    background: role === "patient" ? "linear-gradient(135deg, var(--reg-blue), #5b86f5)" : "linear-gradient(135deg, var(--reg-teal), #1ac5d4)",
+                    boxShadow: role === "patient" ? "0 8px 24px rgba(59,108,244,0.3)" : "0 8px 24px rgba(15,163,177,0.3)",
+                  }}
+                >
+                  {role === "patient" ? "Создать аккаунт пациента" : "Зарегистрироваться как врач"}
+                </button>
 
-                <div className="flex justify-between pt-2 items-center">
-                  <button
-                    type="button"
-                    onClick={() => goTo(2)}
-                    className="px-6 py-3 rounded-xl font-semibold transition-all duration-200 hover:opacity-70"
-                    style={{ color: "var(--med-muted)" }}
-                  >
-                    ← Назад
+                <p className="text-center text-xs" style={{ color: "var(--reg-muted)" }}>
+                  Уже есть аккаунт?{" "}
+                  <button type="button" onClick={() => { setStep("role"); setShowLogin(true); }} className="font-semibold hover:opacity-70" style={{ color: "var(--reg-blue)" }}>
+                    Войти
                   </button>
-                  <button
-                    type="submit"
-                    className="px-8 py-3 rounded-xl font-semibold text-white transition-all duration-200 hover:shadow-lg active:scale-95"
-                    style={{ background: "var(--med-sage)" }}
-                  >
-                    Записаться
-                  </button>
-                </div>
+                </p>
               </form>
             </div>
           )}
 
-          {/* Success */}
-          {submitted && (
-            <div className="flex flex-col items-center justify-center py-20 text-center animate-fade-in">
+          {/* ── success ── */}
+          {step === "success" && (
+            <div className="text-center py-12 animate-fade-in">
               <div
-                className="w-20 h-20 rounded-full flex items-center justify-center mb-6"
-                style={{ background: "var(--med-sage-light)" }}
+                className="w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6"
+                style={{ background: role === "patient" ? "var(--reg-blue-light)" : "var(--reg-teal-light)" }}
               >
-                <Icon name="CheckCircle" size={40} style={{ color: "var(--med-sage)" }} />
+                <Icon name="CheckCircle" size={48} style={{ color: role === "patient" ? "var(--reg-blue)" : "var(--reg-teal)" }} />
               </div>
-              <h2 className="font-serif text-3xl font-semibold mb-3" style={{ color: "var(--med-dark)" }}>
-                Запись принята!
-              </h2>
-              <p className="text-base mb-2" style={{ color: "var(--med-muted)" }}>
-                Ждём вас {dateObj ? `${dateObj.dayNum} ${dateObj.month}` : ""} в {selectedTime}
+              <h2 className="text-3xl font-bold mb-3" style={{ color: "var(--reg-dark)" }}>Аккаунт создан!</h2>
+              <p className="text-base mb-2" style={{ color: "var(--reg-muted)" }}>
+                Добро пожаловать,{" "}
+                <strong style={{ color: "var(--reg-dark)" }}>{role === "patient" ? patient.name : doctor.name}</strong>
               </p>
-              <p className="text-sm mb-8" style={{ color: "var(--med-muted)" }}>
-                Специалист: {doctor?.name}
+              <p className="text-sm mb-8" style={{ color: "var(--reg-muted)" }}>
+                Письмо с подтверждением отправлено на{" "}
+                <span style={{ color: "var(--reg-dark)", fontWeight: 600 }}>{role === "patient" ? patient.email : doctor.email}</span>
               </p>
-              <p className="text-sm px-8 py-3 rounded-2xl" style={{ background: "white", color: "var(--med-muted)" }}>
-                Подтверждение придёт на номер <strong style={{ color: "var(--med-dark)" }}>{form.phone}</strong>
-              </p>
-              <button
-                onClick={() => {
-                  setStep(1);
-                  setSelectedSpecialty("");
-                  setSelectedDoctor("");
-                  setSelectedDate("");
-                  setSelectedTime("");
-                  setForm({ name: "", phone: "", comment: "" });
-                  setSubmitted(false);
-                }}
-                className="mt-8 px-6 py-2.5 rounded-xl text-sm font-medium transition-all hover:opacity-80"
-                style={{ color: "var(--med-sage)", border: "1.5px solid var(--med-sage-light)" }}
-              >
-                Записаться ещё раз
-              </button>
+              <div className="space-y-3">
+                <button
+                  className="w-full py-3.5 rounded-2xl text-white font-bold hover:opacity-90 active:scale-[0.98]"
+                  style={{ background: role === "patient" ? "linear-gradient(135deg, var(--reg-blue), #5b86f5)" : "linear-gradient(135deg, var(--reg-teal), #1ac5d4)" }}
+                >
+                  {role === "patient" ? "Записаться к врачу" : "Настроить расписание"}
+                </button>
+                <button
+                  onClick={() => { setStep("role"); setPatient(emptyPatient); setDoctor(emptyDoctor); setErrors({}); }}
+                  className="w-full py-3 rounded-2xl text-sm font-medium hover:opacity-70"
+                  style={{ color: "var(--reg-muted)", border: "1.5px solid var(--reg-border)" }}
+                >
+                  Зарегистрировать другой аккаунт
+                </button>
+              </div>
             </div>
           )}
         </div>
-      </main>
-
-      {/* Footer */}
-      <footer className="border-t border-stone-200 mt-16 py-8">
-        <div className="max-w-5xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <div
-              className="w-6 h-6 rounded-full flex items-center justify-center"
-              style={{ background: "var(--med-sage)" }}
-            >
-              <Icon name="Plus" size={12} className="text-white" />
-            </div>
-            <span className="font-serif text-base font-semibold" style={{ color: "var(--med-dark)" }}>
-              МедЦентр
-            </span>
-          </div>
-          <p className="text-sm" style={{ color: "var(--med-muted)" }}>
-            Пн–Пт: 09:00–18:00 · Сб: 09:00–14:00
-          </p>
-        </div>
-      </footer>
+      </div>
     </div>
   );
 }
