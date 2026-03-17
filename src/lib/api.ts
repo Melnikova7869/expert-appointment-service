@@ -70,4 +70,6 @@ export const api = {
   }) => post(APPOINTMENTS_URL, data),
 
   myAppointments: () => get(APPOINTMENTS_URL, { action: "my" }),
+
+  allAppointments: () => get(APPOINTMENTS_URL),
 };

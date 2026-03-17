@@ -77,7 +77,7 @@ export default function AuthPage() {
       setToken(res.token);
       setUser(res.user);
       toast.success(mode === "register" ? "Аккаунт создан!" : "Вы вошли в систему");
-      navigate("/");
+      navigate(res.user.role === "doctor" ? "/doctor" : "/");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Ошибка";
       toast.error(msg);
